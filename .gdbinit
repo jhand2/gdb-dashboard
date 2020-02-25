@@ -350,36 +350,39 @@ def fetch_breakpoints(watchpoints=False, pending=False):
     # information
     breakpoints = []
     # XXX in older versions gdb.breakpoints() returns None
-    for gdb_breakpoint in gdb.breakpoints() or []:
-        addresses, is_pending = parsed_breakpoints[gdb_breakpoint.number]
-        is_pending = getattr(gdb_breakpoint, 'pending', is_pending)
-        if not pending and is_pending:
-            continue
-        if not watchpoints and gdb_breakpoint.type != gdb.BP_BREAKPOINT:
-            continue
-        # add useful fields to the object
-        breakpoint = dict()
-        breakpoint['number'] = gdb_breakpoint.number
-        breakpoint['type'] = gdb_breakpoint.type
-        breakpoint['enabled'] = gdb_breakpoint.enabled
-        breakpoint['location'] = gdb_breakpoint.location
-        breakpoint['expression'] = gdb_breakpoint.expression
-        breakpoint['condition'] = gdb_breakpoint.condition
-        breakpoint['temporary'] = gdb_breakpoint.temporary
-        breakpoint['hit_count'] = gdb_breakpoint.hit_count
-        breakpoint['pending'] = is_pending
-        # add addresses and source information
-        breakpoint['addresses'] = []
-        for address, is_enabled in addresses:
-            if address:
-                sal = gdb.find_pc_line(address)
-            breakpoint['addresses'].append({
-                'address': address,
-                'enabled': is_enabled,
-                'file_name': sal.symtab.filename if address and sal.symtab else None,
-                'file_line': sal.line if address else None
-            })
-        breakpoints.append(breakpoint)
+    for gdb_breakpoint in gdb.breakpoints():
+        try:
+            addresses, is_pending = parsed_breakpoints[gdb_breakpoint.number]
+            is_pending = getattr(gdb_breakpoint, 'pending', is_pending)
+            if not pending and is_pending:
+                continue
+            if not watchpoints and gdb_breakpoint.type != gdb.BP_BREAKPOINT:
+                continue
+            # add useful fields to the object
+            breakpoint = dict()
+            breakpoint['number'] = gdb_breakpoint.number
+            breakpoint['type'] = gdb_breakpoint.type
+            breakpoint['enabled'] = gdb_breakpoint.enabled
+            breakpoint['location'] = gdb_breakpoint.location
+            breakpoint['expression'] = gdb_breakpoint.expression
+            breakpoint['condition'] = gdb_breakpoint.condition
+            breakpoint['temporary'] = gdb_breakpoint.temporary
+            breakpoint['hit_count'] = gdb_breakpoint.hit_count
+            breakpoint['pending'] = is_pending
+            # add addresses and source information
+            breakpoint['addresses'] = []
+            for address, is_enabled in addresses:
+                if address:
+                    sal = gdb.find_pc_line(address)
+                breakpoint['addresses'].append({
+                    'address': address,
+                    'enabled': is_enabled,
+                    'file_name': sal.symtab.filename if address and sal.symtab else None,
+                    'file_line': sal.line if address else None
+                })
+            breakpoints.append(breakpoint)
+        except KeyError:
+            pass
     return breakpoints
 
 # Dashboard --------------------------------------------------------------------
@@ -528,6 +531,7 @@ class Dashboard(gdb.Command):
                     # skip disabled modules
                     if not instance:
                         continue
+                    lines = []
                     try:
                         # ask the module to generate the content
                         lines = instance.lines(width, height, style_changed)
